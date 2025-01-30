@@ -1,10 +1,11 @@
+#main.py
 import time
 from flask import Flask, request, render_template, redirect
 from werkzeug.utils import secure_filename
 import storage
 
 app = Flask(__name__)
-BUCKET_NAME = "chabotproject1bucket"  # Replace with your GCS bucket name
+BUCKET_NAME = "chabotproject1bucket"
 
 @app.get("/")
 def index():
