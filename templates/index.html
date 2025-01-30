@@ -26,6 +26,16 @@
         .photo-info {
             margin-top: 10px;
         }
+        .delete-button {
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .delete-button:hover {
+            background-color: #cc0000;
+        }
     </style>
 </head>
 <body>
@@ -44,6 +54,10 @@
             <div class="photo-info">
                 <p>{{ photo.name }}</p>
                 <p>Uploaded: {{ photo.timestamp }}</p>
+                <form action="/delete" method="post" style="display:inline;">
+                    <input type="hidden" name="filename" value="{{ photo.name }}">
+                    <button type="submit" class="delete-button">Delete</button>
+                </form>
             </div>
         </div>
         {% endfor %}
