@@ -40,7 +40,7 @@
     <div class="photo-grid">
         {% for photo in photos %}
         <div class="photo-item">
-            <img src="https://storage.cloud.google.com/chabotproject1bucket/{{ photo.name }}" alt="{{ photo.name }}">
+            <img src="{{ photo.url }}" alt="{{ photo.name }}">
             <div class="photo-info">
                 <p>{{ photo.name }}</p>
                 <p>Uploaded: {{ photo.timestamp }}</p>
