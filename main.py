@@ -180,8 +180,3 @@ def debug_info():
     
     return debug_data
 
-if __name__ == "__main__":
-    # For local development
-    port = int(os.environ.get("PORT", 5500))
-    print(f"Starting server on port {port}")
-    app.run(host="0.0.0.0", port=port, debug=False)
