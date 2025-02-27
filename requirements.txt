@@ -3,4 +3,5 @@ google-cloud-storage
 google-cloud-datastore
 gunicorn
 werkzeug
+python-dotenv
 #requirements.txt

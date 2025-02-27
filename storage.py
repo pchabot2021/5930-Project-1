@@ -5,7 +5,7 @@ import logging
 # Set up logging
 logger = logging.getLogger(__name__)
 
-PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "sonic-base-449423-g4") 
+PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "your-project-id")
 
 def get_storage_client():
     """Get storage client with appropriate credentials based on environment"""
@@ -26,7 +26,7 @@ def upload_file(bucket_name, file_stream, destination_filename):
         blob.upload_from_file(file_stream)
         return destination_filename
     except Exception as e:
-        logger.error(f"Upload error")
+        logger.error(f"Upload error: {str(e)}")
         raise
 
 def get_file_stream(bucket_name, blob_name):
@@ -37,7 +37,7 @@ def get_file_stream(bucket_name, blob_name):
         
         # Check if blob exists
         if not blob.exists():
-            logger.warning(f"File not found")
+            logger.warning(f"File not found: {blob_name}")
             raise FileNotFoundError(f"File not found")
         
         # Download as bytes
@@ -46,7 +46,7 @@ def get_file_stream(bucket_name, blob_name):
     except FileNotFoundError:
         raise
     except Exception as e:
-        logger.error(f"Download error")
+        logger.error(f"Download error: {str(e)}")
         raise
 
 def get_content_type(filename):
@@ -72,7 +72,7 @@ def add_db_entry(object):
         entity.update(object)
         datastore_client.put(entity)
     except Exception as e:
-        logger.error(f"Database error")
+        logger.error(f"Database error: {str(e)}")
         raise
 
 def delete_file(bucket_name, blob_name):
@@ -90,5 +90,5 @@ def delete_file(bucket_name, blob_name):
         for entity in results:
             datastore_client.delete(entity.key)
     except Exception as e:
-        logger.error(f"Delete error")
+        logger.error(f"Delete error: {str(e)}")
         raise

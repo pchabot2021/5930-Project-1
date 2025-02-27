@@ -5,26 +5,34 @@ from flask import Flask, request, render_template, redirect, make_response, url_
 from werkzeug.utils import secure_filename
 import storage
 import logging
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Print environment variables for debugging
-print("Environment variables:")
-print(f"GOOGLE_CLOUD_PROJECT: {os.getenv('GOOGLE_CLOUD_PROJECT')}")
-print(f"GCS_BUCKET_NAME: {os.getenv('GCS_BUCKET_NAME')}")
-print(f"GOOGLE_APPLICATION_CREDENTIALS: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
-print(f"LOCAL_DEVELOPMENT: {os.getenv('LOCAL_DEVELOPMENT')}")
+# Try to load dotenv for local development, but don't fail in production
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    print("Loaded environment variables from .env file")
+except ImportError:
+    # In production (Cloud Run), we don't need dotenv
+    print("Running without dotenv (likely in production)")
+    pass
 
 # Set up logging with basic configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Get configuration from environment variables
+PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "your-project-id")
+BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "your-bucket-name")
+print(f"Using project: {PROJECT_ID}, bucket: {BUCKET_NAME}")
+
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit uploads to 16MB
-BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "your-bucket-name")
-print(f"Using bucket: {BUCKET_NAME}")
+
+# Simple health check endpoint
+@app.route('/health')
+def health_check():
+    """Simple health check to verify the app is running"""
+    return "OK", 200
 
 # Custom error handlers
 @app.errorhandler(404)
@@ -39,10 +47,8 @@ def server_error(e):
 def index():
     """Fetches and displays uploaded photos."""
     try:
-        print("Trying to query photos from Datastore...")
         query = storage.datastore_client.query(kind='photos')
         photos = list(query.fetch())
-        print(f"Found {len(photos)} photos")
         
         # Generate API URLs for each photo
         for photo in photos:
@@ -51,9 +57,6 @@ def index():
         
         return render_template('index.html', photos=photos)
     except Exception as e:
-        print(f"ERROR: {str(e)}")
-        print("Full traceback:")
-        traceback.print_exc()
         logger.error(f"Error in index route: {str(e)}")
         return redirect(url_for('error_page', error_code=500))
 
@@ -61,14 +64,11 @@ def index():
 def get_image(filename):
     """Streams an image file from Google Cloud Storage."""
     try:
-        print(f"Image request for: {filename}")
-        
         # Get file content from GCS
         file_bytes = storage.get_file_stream(BUCKET_NAME, filename)
         
         # Determine content type
         content_type = storage.get_content_type(filename)
-        print(f"Serving image with content type: {content_type}")
         
         # Create a response with the file content
         response = make_response(file_bytes)
@@ -77,37 +77,29 @@ def get_image(filename):
         
         return response
     except FileNotFoundError:
-        print(f"Image not found: {filename}")
-        logger.warning(f"Image not found")
+        logger.warning(f"Image not found: {filename}")
         return redirect(url_for('error_page', error_code=404))
     except Exception as e:
-        print(f"Error retrieving image: {str(e)}")
-        traceback.print_exc()
-        logger.error(f"Error retrieving image")
+        logger.error(f"Error retrieving image: {str(e)}")
         return redirect(url_for('error_page', error_code=500))
 
 @app.post("/upload")
 def upload_image():
     """Handles image uploads and stores metadata."""
     try:
-        print("Processing upload request")
         if 'file' not in request.files:
-            print("No file part in request")
             return redirect(url_for('index'))
         
         file = request.files['file']
         if file.filename == '':
-            print("No file selected")
             return redirect(url_for('index'))
         
         if file:
             filename = secure_filename(file.filename)
-            print(f"Processing upload for file: {filename}")
             # Set file position to start
             file.seek(0)
             
             storage.upload_file(BUCKET_NAME, file, filename)
-            print(f"File uploaded successfully")
             
             entity = {
                 "name": filename,
@@ -115,13 +107,10 @@ def upload_image():
                 "timestamp": int(time.time())
             }
             storage.add_db_entry(entity)
-            print(f"Database entry added")
         
         return redirect(url_for('index'))
     except Exception as e:
-        print(f"Upload error: {str(e)}")
-        traceback.print_exc()
-        logger.error(f"Error in upload")
+        logger.error(f"Error in upload: {str(e)}")
         return redirect(url_for('error_page', error_code=500))
 
 @app.post("/delete")
@@ -130,14 +119,10 @@ def delete_image():
     try:
         filename = request.form.get("filename")
         if filename:
-            print(f"Deleting file: {filename}")
             storage.delete_file(BUCKET_NAME, filename)
-            print(f"File deleted successfully")
         return redirect(url_for('index'))
     except Exception as e:
-        print(f"Delete error: {str(e)}")
-        traceback.print_exc()
-        logger.error(f"Error in delete")
+        logger.error(f"Error in delete: {str(e)}")
         return redirect(url_for('error_page', error_code=500))
 
 @app.route('/error/<int:error_code>')
@@ -152,8 +137,6 @@ def error_page(error_code):
     try:
         return render_template('error.html', error_code=error_code, message=message), error_code
     except Exception as e:
-        print(f"Error rendering error page: {str(e)}")
-        traceback.print_exc()
         return f"Error {error_code}: {message}", error_code
 
 # Debug endpoint to check environment and connections
@@ -161,10 +144,8 @@ def error_page(error_code):
 def debug_info():
     """Returns debug information about the environment"""
     debug_data = {
-        "GOOGLE_APPLICATION_CREDENTIALS": os.getenv("GOOGLE_APPLICATION_CREDENTIALS"),
         "GOOGLE_CLOUD_PROJECT": os.getenv("GOOGLE_CLOUD_PROJECT"),
         "GCS_BUCKET_NAME": os.getenv("GCS_BUCKET_NAME"),
-        "LOCAL_DEVELOPMENT": os.getenv("LOCAL_DEVELOPMENT"),
         "BUCKET_NAME": BUCKET_NAME,
     }
     # Try to access the bucket to check permissions
@@ -180,3 +161,10 @@ def debug_info():
     
     return debug_data
 
+# This is intentionally left outside of the if __name__ == "__main__" block
+# so Gunicorn can find the app variable
+# For local development, this provides a way to run the app
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))  # Default to 8080 for Cloud Run
+    print(f"Starting development server on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=False)
