@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Photo Gallery</title>
+    <title>AI-Enhanced Photo Gallery</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -23,16 +23,18 @@
         .photo-container {
             position: relative;
             width: 300px;
-            height: 300px;
+            min-height: 350px;
             margin-bottom: 20px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             border-radius: 8px;
             overflow: hidden;
             background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
         }
         .image-wrapper {
             width: 100%;
-            height: 100%;
+            height: 200px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -45,18 +47,29 @@
             max-height: 100%;
             display: block;
         }
-        .photo-details {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            padding: 8px;
-            background-color: rgba(0, 0, 0, 0.5);
-            color: white;
-            font-size: 0.9em;
-            text-overflow: ellipsis;
+        .metadata {
+            padding: 15px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .metadata h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 16px;
+        }
+        .metadata .description {
+            font-size: 14px;
+            color: #666;
             overflow: hidden;
-            white-space: nowrap;
+            flex-grow: 1;
+            margin-bottom: 10px;
+        }
+        .filename {
+            font-size: 12px;
+            color: #999;
+            margin-top: auto;
         }
         .delete-form {
             position: absolute;
@@ -110,27 +123,47 @@
             border: 1px solid #ddd;
             border-radius: 4px;
         }
+        .app-description {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .app-description h2 {
+            margin-top: 0;
+        }
+        .app-description p {
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
-    <h1>Photo Gallery</h1>
+    <h1>Gemini Ai Caption Gallery</h1>
+    
+    <div class="app-description">
+        <h2>Upload a photo to analyze it</h2>
+        <p>The website will use Google's Gemini to provide a description.</p>
+    </div>
     
     <form class="upload-form" action="/upload" method="post" enctype="multipart/form-data">
         <input type="file" name="file" accept="image/*">
-        <button class="upload-btn" type="submit">Upload</button>
+        <button class="upload-btn" type="submit">Upload & Analyze</button>
     </form>
     
-    <h2>Uploaded Photos</h2>
+    <h2>Your Photos</h2>
     
     <div class="gallery">
         {% if photos %}
             {% for photo in photos %}
             <div class="photo-container">
                 <div class="image-wrapper">
-                    <img src="{{ photo.image_url }}" alt="{{ photo.name }}" onerror="this.src='/static/placeholder.png'; this.onerror=null;">
+                    <img src="{{ photo.image_url }}" alt="{{ photo.title }}" onerror="this.src='/static/placeholder.png'; this.onerror=null;">
                 </div>
-                <div class="photo-details">
-                    {{ photo.name }}
+                <div class="metadata">
+                    <h3>{{ photo.title }}</h3>
+                    <div class="description">{{ photo.description }}</div>
+                    <div class="filename">{{ photo.name }}</div>
                 </div>
                 <form class="delete-form" action="/delete" method="post">
                     <input type="hidden" name="filename" value="{{ photo.name }}">
@@ -140,7 +173,7 @@
             {% endfor %}
         {% else %}
             <div class="no-photos">
-                <p>No photos uploaded yet. Upload your first photo!</p>
+                <p>No photos uploaded yet</p>
             </div>
         {% endif %}
     </div>

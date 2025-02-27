@@ -4,4 +4,5 @@ google-cloud-datastore
 gunicorn
 werkzeug
 python-dotenv
+google-generativeai
 #requirements.txt

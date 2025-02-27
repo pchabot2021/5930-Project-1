@@ -1,5 +1,6 @@
 import time
 import os
+import json
 import traceback
 from flask import Flask, request, render_template, redirect, make_response, url_for
 from werkzeug.utils import secure_filename
@@ -12,7 +13,6 @@ try:
     load_dotenv()
     print("Loaded environment variables from .env file")
 except ImportError:
-    # In production (Cloud Run), we don't need dotenv
     print("Running without dotenv (likely in production)")
     pass
 
@@ -34,7 +34,7 @@ def health_check():
     """Simple health check to verify the app is running"""
     return "OK", 200
 
-# Custom error handlers
+# Custom error handlerss
 @app.errorhandler(404)
 def page_not_found(e):
     return "File not found", 404
@@ -45,19 +45,41 @@ def server_error(e):
 
 @app.get("/")
 def index():
-    """Fetches and displays uploaded photos."""
+    """Fetches and displays uploaded photos with their metadata."""
     try:
         query = storage.datastore_client.query(kind='photos')
         photos = list(query.fetch())
         
-        # Generate API URLs for each photo
+        if not photos:
+            logger.info("No photos found in database")
+            return render_template('index.html', photos=[])
+        
+        # Generate API URLs for each photo and get metadata
         for photo in photos:
             if 'name' in photo:
                 photo['image_url'] = url_for('get_image', filename=photo['name'])
+                
+                # Try get metadata
+                try:
+                    base_name = os.path.splitext(photo['name'])[0]
+                    json_filename = f"{base_name}.json"
+                    
+                    metadata = storage.get_metadata(BUCKET_NAME, json_filename)
+                    if metadata:
+                        photo['title'] = metadata.get('title', 'No title available')
+                        photo['description'] = metadata.get('description', 'No description available')
+                    else:
+                        photo['title'] = photo['name']
+                        photo['description'] = 'No description available'
+                except Exception as e:
+                    logger.error(f"Error getting metadata for {photo['name']}: {str(e)}")
+                    photo['title'] = photo['name']
+                    photo['description'] = 'Could not load description'
         
         return render_template('index.html', photos=photos)
     except Exception as e:
         logger.error(f"Error in index route: {str(e)}")
+        traceback.print_exc()
         return redirect(url_for('error_page', error_code=500))
 
 @app.get("/images/<filename>")
@@ -96,7 +118,7 @@ def upload_image():
         
         if file:
             filename = secure_filename(file.filename)
-            # Set file position to start
+    
             file.seek(0)
             
             storage.upload_file(BUCKET_NAME, file, filename)
@@ -111,6 +133,7 @@ def upload_image():
         return redirect(url_for('index'))
     except Exception as e:
         logger.error(f"Error in upload: {str(e)}")
+        traceback.print_exc()
         return redirect(url_for('error_page', error_code=500))
 
 @app.post("/delete")
@@ -120,6 +143,15 @@ def delete_image():
         filename = request.form.get("filename")
         if filename:
             storage.delete_file(BUCKET_NAME, filename)
+            
+            # Also delete the metadata JSON file if it exists
+            try:
+                base_name = os.path.splitext(filename)[0]
+                json_filename = f"{base_name}.json"
+                storage.delete_file_without_db(BUCKET_NAME, json_filename)
+            except Exception as e:
+                logger.warning(f"Could not delete metadata file: {str(e)}")
+                
         return redirect(url_for('index'))
     except Exception as e:
         logger.error(f"Error in delete: {str(e)}")
@@ -146,6 +178,7 @@ def debug_info():
     debug_data = {
         "GOOGLE_CLOUD_PROJECT": os.getenv("GOOGLE_CLOUD_PROJECT"),
         "GCS_BUCKET_NAME": os.getenv("GCS_BUCKET_NAME"),
+        "GEMINI_API_SET": "Yes" if os.getenv("GEMINI_API") else "No",
         "BUCKET_NAME": BUCKET_NAME,
     }
     # Try to access the bucket to check permissions
@@ -161,9 +194,6 @@ def debug_info():
     
     return debug_data
 
-# This is intentionally left outside of the if __name__ == "__main__" block
-# so Gunicorn can find the app variable
-# For local development, this provides a way to run the app
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))  # Default to 8080 for Cloud Run
     print(f"Starting development server on port {port}")
