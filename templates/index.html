@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI-Enhanced Photo Gallery</title>
+    <title>Gemini 1.5 Flash Caption Generator Dashboard</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
-            background-color:rgb(252, 252, 252);
+            background-color:rgb(246, 4, 4);
         }
         h1, h2 {
             color: #333;
@@ -139,11 +139,11 @@
     </style>
 </head>
 <body>
-    <h1>Gemini Ai Caption Gallery</h1>
+    <h1>Gemini Ai Caption Dashboard</h1>
     
     <div class="app-description">
-        <h2>Upload a photo to analyze it</h2>
-        <p>The website will use Google's Gemini to provide a description.</p>
+        <h2>Upload a photo to be analyzed</h2>
+        <p>Current Iteration 4-26-2025</p>
     </div>
     
     <form class="upload-form" action="/upload" method="post" enctype="multipart/form-data">
@@ -151,7 +151,7 @@
         <button class="upload-btn" type="submit">Upload & Analyze</button>
     </form>
     
-    <h2>Your Photos</h2>
+    <h2>Recent Photos</h2>
     
     <div class="gallery">
         {% if photos %}
